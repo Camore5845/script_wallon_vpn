@@ -12,7 +12,7 @@ SERVER_PORT=""
 
 # Demande à l'utilisateur d'entrer l'IP et le port du serveur
 demander_ip_port() {
-    read -p "Entrer l'adresse IP du serveur OpenVPN (ex: 192.168.1.1) : " SERVER_IP
+    read -p "Entrer l'adresse IP du serveur OpenVPN (ex: 172.16.246.10) : " SERVER_IP
     read -p "Entrer le port du serveur OpenVPN (ex: 1194) : " SERVER_PORT
 }
 
