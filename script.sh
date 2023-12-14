@@ -98,8 +98,8 @@ configurer_openvpn() {
     proto udp
     dev tun
     ca /opt/easy-rsa/pki/ca.crt
-    cert /opt/easy-rsa/pki/issued/server.crt
-    key /opt/easy-rsa/pki/private/server.key
+    cert /opt/easy-rsa/pki/issued/${server_name}.${CA_NAME}.crt
+    key /opt/easy-rsa/pki/private/${server_name}.${CA_NAME}.key
     dh /opt/easy-rsa/pki/dh.pem
     server 10.8.0.0 255.255.255.0
     ifconfig-pool-persist ipp.txt
