@@ -116,6 +116,16 @@ configurer_openvpn() {
 EOF
 
     log_message "Configuration du serveur OpenVPN '${server_name}' terminée."
+
+    # Demander à l'utilisateur s'il souhaite activer l'IP Forwarding et configurer iptables
+    read -p "Voulez-vous activer l'IP Forwarding et configurer iptables maintenant ? (o/n) : " choix_forwarding
+    if [[ $choix_forwarding == "o" ]]; then
+        activer_ip_forwarding
+        configurer_iptables
+    else
+        log_message "Retour au menu principal."
+        return
+    fi
 }
 
 # Fonction pour créer un client
@@ -206,6 +216,63 @@ configurer_iptables() {
     apt-get install -y iptables-persistent
 }
 
+# Fonction pour vérifier et installer Wget si nécessaire
+verifier_et_installer_wget() {
+    if ! is_package_installed "wget"; then
+        log_message "Installation de Wget..."
+        apt-get install -y wget
+    fi
+}
+
+# Fonction pour récupérer et configurer un client VPN distant
+recuperer_et_configurer_client_distant() {
+    verifier_et_installer_wget
+
+    # Demander l'URL du fichier de configuration client VPN distant
+    echo "Entrer l'URL du fichier de configuration client OpenVPN distant :"
+    read client_conf_url
+    wget -O temp_client.conf "$client_conf_url" || { echo "Erreur lors du téléchargement"; return; }
+
+    # Demander à l'utilisateur de nommer le fichier de configuration
+    echo "Nommer le fichier de configuration (défaut: catheram.conf) :"
+    read client_conf_name
+    client_conf_name=${client_conf_name:-catheram.conf}
+
+    # Demander le répertoire de destination pour le fichier de configuration
+    echo "Répertoire de destination pour le fichier de configuration (défaut: /etc/openvpn/client) :"
+    read client_conf_dir
+    client_conf_dir=${client_conf_dir:-/etc/openvpn/client}
+
+    # Déplacer le fichier de configuration dans le répertoire spécifié
+    mv temp_client.conf "$client_conf_dir/$client_conf_name"
+
+    # Afficher les interfaces réseau et leurs adresses IP pour aider à choisir l'interface
+    echo "Interfaces réseau disponibles :"
+    ip -4 addr show | grep -E '^[0-9]+: ' | cut -d' ' -f2,3
+
+    # Demander l'interface réseau
+    read -p "Entrer le nom de l'interface réseau (défaut: eth0) : " network_interface
+    network_interface=${network_interface:-eth0}
+
+    # Demander les plages IP pour la règle iptables
+    echo "Entrer la plage IP locale du serveur VPN (ex: 10.8.0.0/24) :"
+    read local_vpn_range
+    echo "Entrer la plage IP du client VPN distant (ex: 10.9.0.0/24) :"
+    read remote_vpn_range
+
+    # Configurer la règle iptables
+    iptables -A FORWARD -i $network_interface -o tun1 -s $local_vpn_range -d $remote_vpn_range -j ACCEPT
+    log_message "Règle iptables configurée pour le routage entre $local_vpn_range et $remote_vpn_range."
+
+    # Demander confirmation avant de démarrer la configuration client VPN
+    echo "Êtes-vous sûr de vouloir démarrer la configuration client ? (o/n)"
+    read confirmation
+    if [[ $confirmation == "o" ]]; then
+        systemctl start openvpn-client@$client_conf_name
+        ip a show tun1
+    fi
+}
+
 # Menu de sélection
 while true; do
     echo "Choisissez une option:"
@@ -214,10 +281,9 @@ while true; do
     echo "3) Créer un client"
     echo "4) Configurer OpenVPN"
     echo "5) Activer IP Forwarding et configurer iptables"
-    echo "6) Quitter"
+    echo "6) Récupérer et configurer un client VPN distant"
+    echo "7) Quitter"
     read -p "Entrez un numéro: " choix
-
-    log_message "Option sélectionnée : $choix"
 
     case $choix in
         1)
@@ -237,6 +303,9 @@ while true; do
             configurer_iptables
             ;;
         6)
+            recuperer_et_configurer_client_distant
+            ;;
+        7)
             log_message "Fin du script."
             break
             ;;
