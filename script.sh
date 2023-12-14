@@ -120,7 +120,7 @@ EOF
 
 # Fonction pour créer un client
 creer_client() {
-    log_message "Création d'un client OpenVPN..."
+    echo "Création d'un client OpenVPN..."
 
     echo "Entrer le nom du client (ex: client1) :"
     read client_name
@@ -129,7 +129,7 @@ creer_client() {
     ./easyrsa gen-req $client_name nopass
     ./easyrsa sign-req client $client_name
 
-    # Création du fichier de configuration client
+    # Création du fichier de configuration client avec les certificats et clés intégrés
     cat > /srv/${client_name}_client.conf <<EOF
     client
     dev tun
@@ -141,13 +141,26 @@ creer_client() {
     group nogroup
     persist-key
     persist-tun
-    ca ca.crt
-    cert issued/${client_name}.crt
-    key private/${client_name}.key
+    # CA
+    <ca>
+    $(cat /opt/easy-rsa/pki/ca.crt)
+    </ca>
+    # Cert
+    <cert>
+    $(cat /opt/easy-rsa/pki/issued/${client_name}.crt)
+    </cert>
+    # Key
+    <key>
+    $(cat /opt/easy-rsa/pki/private/${client_name}.key)
+    </key>
     remote-cert-tls server
     cipher AES-256-CBC
     verb 3
 EOF
+
+    echo "Configuration du client '${client_name}' terminée."
+}
+
 
     log_message "Configuration du client '${client_name}' terminée."
 }
