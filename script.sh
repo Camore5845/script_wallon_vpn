@@ -279,7 +279,7 @@ while true; do
     echo "1) Installer OpenVPN et easy-rsa"
     echo "2) Configurer la PKI et les certificats"
     echo "3) Créer un client"
-    echo "4) Configurer OpenVPN"
+    echo "4) Configurer le Serveur OpenVPN"
     echo "5) Activer IP Forwarding et configurer iptables"
     echo "6) Récupérer et configurer un client VPN distant"
     echo "7) Quitter"
