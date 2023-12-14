@@ -271,6 +271,14 @@ recuperer_et_configurer_client_distant() {
         systemctl start openvpn-client@$client_conf_name
         ip a show tun1
     fi
+    # Redémarrer la configuration client VPN pour appliquer les changements
+    log_message "Redémarrage de la configuration client VPN pour appliquer les changements."
+    systemctl stop openvpn-client@$client_conf_name
+    systemctl start openvpn-client@$client_conf_name
+    log_message "Configuration du client VPN '${client_conf_name}' redémarrée et appliquée."
+
+    # Vérification de l'état du tunnel VPN
+    ip a show tun1
 }
 
 # Menu de sélection
