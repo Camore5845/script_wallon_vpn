@@ -161,10 +161,6 @@ EOF
     echo "Configuration du client '${client_name}' terminée."
 }
 
-
-    log_message "Configuration du client '${client_name}' terminée."
-}
-
 # Activer IP forwarding de manière persistante
 activer_ip_forwarding() {
     log_message "Activation de l'IP Forwarding..."
