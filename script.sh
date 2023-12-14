@@ -1,8 +1,16 @@
 #!/bin/bash
 
+# Définition du fichier de log
+LOG_FILE="/home/$USER/lorelei-$(date '+%H-%M-%d-%m-%Y').log"
+
+# Fonction pour logger les messages
+log_message() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
+}
+
 # Vérifier si l'utilisateur est root
 if [ "$(id -u)" != "0" ]; then
-   echo "Ce script doit être exécuté en tant que root" 1>&2
+   log_message "Ce script doit être exécuté en tant que root"
    exit 1
 fi
 
@@ -14,6 +22,7 @@ SERVER_PORT=""
 demander_ip_port() {
     read -p "Entrer l'adresse IP du serveur OpenVPN (ex: 172.16.246.10) : " SERVER_IP
     read -p "Entrer le port du serveur OpenVPN (ex: 1194) : " SERVER_PORT
+    log_message "Adresse IP du serveur configurée : $SERVER_IP, Port : $SERVER_PORT"
 }
 
 # Demander l'IP et le port du serveur dès le début
@@ -27,9 +36,9 @@ is_package_installed() {
 
 # Fonction pour désinstaller un paquet
 uninstall_package() {
-    echo "Désinstallation de $1..."
-    sudo apt-get purge -y $1
-    sudo apt-get autoremove -y
+    log_message "Désinstallation de $1..."
+    apt-get purge -y $1
+    apt-get autoremove -y
 }
 
 # Fonction pour installer OpenVPN et easy-rsa
@@ -50,7 +59,7 @@ installer_openvpn() {
         fi
     fi
 
-    echo "Installation d'OpenVPN et easy-rsa..."
+    log_message "Installation d'OpenVPN et easy-rsa..."
     apt-get update
     apt-get install -y openvpn easy-rsa
     cp -r /usr/share/easy-rsa /opt
@@ -58,7 +67,7 @@ installer_openvpn() {
 
 # Fonction pour configurer la PKI et les certificats
 configurer_pki() {
-    echo "Configuration de la PKI et des certificats..."
+    log_message "Configuration de la PKI et des certificats..."
 
     cd /opt/easy-rsa
     ./easyrsa init-pki
@@ -67,19 +76,19 @@ configurer_pki() {
     read ca_name
     ./easyrsa build-ca nopass --batch --req-cn="$ca_name"
 
-    echo "Génération des clés et certificats pour le serveur..."
+    log_message "Génération des clés et certificats pour le serveur..."
     ./easyrsa gen-req server nopass --batch
     ./easyrsa sign-req server server --batch
 
-    echo "Génération de la clé Diffie-Hellman..."
+    log_message "Génération de la clé Diffie-Hellman..."
     ./easyrsa gen-dh
 
-    echo "PKI et certificats configurés."
+    log_message "PKI et certificats configurés."
 }
 
 # Fonction pour configurer OpenVPN
 configurer_openvpn() {
-    echo "Configuration d'OpenVPN..."
+    log_message "Configuration d'OpenVPN..."
 
     echo "Entrer le nom du serveur OpenVPN (ex: monserveur) :"
     read server_name
@@ -106,12 +115,12 @@ configurer_openvpn() {
     verb 3
 EOF
 
-    echo "Configuration du serveur OpenVPN '${server_name}' terminée."
+    log_message "Configuration du serveur OpenVPN '${server_name}' terminée."
 }
 
 # Fonction pour créer un client
 creer_client() {
-    echo "Création d'un client OpenVPN..."
+    log_message "Création d'un client OpenVPN..."
 
     echo "Entrer le nom du client (ex: client1) :"
     read client_name
@@ -140,7 +149,52 @@ creer_client() {
     verb 3
 EOF
 
-    echo "Configuration du client '${client_name}' terminée."
+    log_message "Configuration du client '${client_name}' terminée."
+}
+
+# Activer IP forwarding de manière persistante
+activer_ip_forwarding() {
+    log_message "Activation de l'IP Forwarding..."
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+    sed -i '/net.ipv4.ip_forward=1/s/^#//g' /etc/sysctl.conf
+    sysctl -p
+    log_message "IP Forwarding activé."
+}
+
+# Installer et configurer iptables
+configurer_iptables() {
+    log_message "Configuration d'iptables..."
+
+    # Vérifier si iptables est installé
+    if ! is_package_installed "iptables"; then
+        log_message "Installation d'iptables..."
+        apt-get install -y iptables
+    else
+        log_message "iptables déjà installé. Réinitialisation des règles existantes..."
+        iptables -t nat -F
+    fi
+
+    # Demander la plage IP avec CIDR
+    default_cidr="10.8.0.0/24"
+    read -p "Entrer la plage IP avec CIDR pour les règles iptables (défaut: $default_cidr) : " cidr
+    cidr=${cidr:-$default_cidr}
+    log_message "Plage IP avec CIDR sélectionnée : $cidr"
+
+    # Demander à l'utilisateur de choisir l'interface réseau
+    log_message "Interfaces réseau disponibles :"
+    ip link show
+    read -p "Entrer le nom de l'interface réseau pour la sortie (ex: enp1s0) : " network_interface
+    log_message "Interface réseau sélectionnée : $network_interface"
+
+    # Appliquer la règle iptables
+    iptables -t nat -A POSTROUTING -s $cidr -o $network_interface -j MASQUERADE
+    log_message "Règle iptables appliquée pour la plage IP $cidr sur l'interface $network_interface."
+
+    # Installer iptables-persistent pour conserver les règles
+    log_message "Installation d'iptables-persistent..."
+    echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
+    echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
+    apt-get install -y iptables-persistent
 }
 
 # Menu de sélection
@@ -150,8 +204,11 @@ while true; do
     echo "2) Configurer la PKI et les certificats"
     echo "3) Créer un client"
     echo "4) Configurer OpenVPN"
-    echo "5) Quitter"
+    echo "5) Activer IP Forwarding et configurer iptables"
+    echo "6) Quitter"
     read -p "Entrez un numéro: " choix
+
+    log_message "Option sélectionnée : $choix"
 
     case $choix in
         1)
@@ -167,6 +224,11 @@ while true; do
             configurer_openvpn
             ;;
         5)
+            activer_ip_forwarding
+            configurer_iptables
+            ;;
+        6)
+            log_message "Fin du script."
             break
             ;;
         *)
@@ -175,5 +237,4 @@ while true; do
     esac
 done
 
-echo "Script terminé."
-
+log_message "Script terminé."
