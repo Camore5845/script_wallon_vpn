@@ -40,7 +40,49 @@ uninstall_package() {
     apt-get purge -y $1
     apt-get autoremove -y
 }
+# Menu de sélection
+while true; do
+    echo "Choisissez une option:"
+    echo "1) Installer OpenVPN et easy-rsa"
+    echo "2) Configurer la PKI et les certificats"
+    echo "3) Créer un client"
+    echo "4) Configurer le Serveur OpenVPN"
+    echo "5) Activer IP Forwarding et configurer iptables"
+    echo "6) Récupérer et configurer un client VPN distant"
+    echo "7) Quitter"
+    read -p "Entrez un numéro: " choix
 
+    case $choix in
+        1)
+            installer_openvpn
+            ;;
+        2)
+            configurer_pki
+            ;;
+        3)
+            creer_client
+            ;;
+        4)
+            configurer_openvpn
+            ;;
+        5)
+            activer_ip_forwarding
+            configurer_iptables
+            ;;
+        6)
+            recuperer_et_configurer_client_distant
+            ;;
+        7)
+            log_message "Fin du script."
+            break
+            ;;
+        *)
+            echo "Sélection invalide. Veuillez réessayer."
+            ;;
+    esac
+done
+
+log_message "Script terminé."
 # Fonction pour installer OpenVPN et easy-rsa
 installer_openvpn() {
     # Vérifie si Easy-RSA est installé
