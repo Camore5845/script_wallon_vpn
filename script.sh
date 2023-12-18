@@ -89,7 +89,7 @@ configurer_pki() {
     log_message "Configuration de la PKI et des certificats..."
      # Initialiser les dossiers PKI
     initialiser_dossiers_pki
-    cd /opt/easy-rsa
+    /opt/easy-rsa
     ./easyrsa init-pki
 
     echo "Entrer le nom de domaine pour la CA (ex: pki-eval.local) :"
