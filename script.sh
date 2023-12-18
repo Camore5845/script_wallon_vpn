@@ -14,10 +14,11 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
-# Variables globales pour l'IP et le port du serveur
+# Variables globales pour l'IP et le port du serveur, le nom du serveur et le nom de la CA
 SERVER_IP=""
 SERVER_PORT=""
 CA_NAME=""
+server_name="""
 
 # Demande à l'utilisateur d'entrer l'IP et le port du serveur
 demander_ip_port() {
@@ -41,6 +42,10 @@ uninstall_package() {
     apt-get purge -y $1
     apt-get autoremove -y
 }
+    # Demande du nom de domaine pour la CA
+    echo "Entrer le nom de domaine pour la CA (ex: pki-eval.local) :"
+    read CA_NAME
+    log_message "Nom de domaine pour la CA défini : $CA_NAME"
 
 # Fonction pour installer OpenVPN et easy-rsa
 installer_openvpn() {
@@ -87,14 +92,13 @@ configurer_pki() {
     log_message "PKI et certificats configurés."
 }
 
-# Fonction pour configurer OpenVPN
 configurer_openvpn() {
-    log_message "Configuration d'OpenVPN..."
-
+    # Demande du nom du serveur OpenVPN
     echo "Entrer le nom du serveur OpenVPN (ex: monserveur) :"
     read server_name
+    log_message "Nom du serveur OpenVPN défini : $server_name"
 
-    # Vérifier si le nom de domaine pour la CA est défini
+    # Vérification si CA_NAME est défini
     if [ -z "$CA_NAME" ]; then
         echo "Nom de domaine pour la CA non défini. Veuillez configurer la PKI d'abord."
         return
