@@ -17,6 +17,7 @@ fi
 # Variables globales pour l'IP et le port du serveur
 SERVER_IP=""
 SERVER_PORT=""
+CA_NAME=""
 
 # Demande à l'utilisateur d'entrer l'IP et le port du serveur
 demander_ip_port() {
@@ -40,49 +41,7 @@ uninstall_package() {
     apt-get purge -y $1
     apt-get autoremove -y
 }
-# Menu de sélection
-while true; do
-    echo "Choisissez une option:"
-    echo "1) Installer OpenVPN et easy-rsa"
-    echo "2) Configurer la PKI et les certificats"
-    echo "3) Créer un client"
-    echo "4) Configurer le Serveur OpenVPN"
-    echo "5) Activer IP Forwarding et configurer iptables"
-    echo "6) Récupérer et configurer un client VPN distant"
-    echo "7) Quitter"
-    read -p "Entrez un numéro: " choix
 
-    case $choix in
-        1)
-            installer_openvpn
-            ;;
-        2)
-            configurer_pki
-            ;;
-        3)
-            creer_client
-            ;;
-        4)
-            configurer_openvpn
-            ;;
-        5)
-            activer_ip_forwarding
-            configurer_iptables
-            ;;
-        6)
-            recuperer_et_configurer_client_distant
-            ;;
-        7)
-            log_message "Fin du script."
-            break
-            ;;
-        *)
-            echo "Sélection invalide. Veuillez réessayer."
-            ;;
-    esac
-done
-
-log_message "Script terminé."
 # Fonction pour installer OpenVPN et easy-rsa
 installer_openvpn() {
     # Vérifie si Easy-RSA est installé
@@ -135,6 +94,13 @@ configurer_openvpn() {
     echo "Entrer le nom du serveur OpenVPN (ex: monserveur) :"
     read server_name
 
+    # Vérifier si le nom de domaine pour la CA est défini
+    if [ -z "$CA_NAME" ]; then
+        echo "Nom de domaine pour la CA non défini. Veuillez configurer la PKI d'abord."
+        return
+    fi
+
+    # Configuration du fichier du serveur OpenVPN
     cat > /etc/openvpn/server/${server_name}_server.conf <<EOF
     port $SERVER_PORT
     proto udp
@@ -158,6 +124,17 @@ configurer_openvpn() {
 EOF
 
     log_message "Configuration du serveur OpenVPN '${server_name}' terminée."
+
+    # Demander à l'utilisateur s'il souhaite activer l'IP Forwarding et configurer iptables
+    read -p "Voulez-vous activer l'IP Forwarding et configurer iptables maintenant ? (o/n) : " choix_forwarding
+    if [[ $choix_forwarding == "o" ]]; then
+        activer_ip_forwarding
+        configurer_iptables
+    else
+        log_message "Retour au menu principal."
+    fi
+}
+
 
     # Demander à l'utilisateur s'il souhaite activer l'IP Forwarding et configurer iptables
     read -p "Voulez-vous activer l'IP Forwarding et configurer iptables maintenant ? (o/n) : " choix_forwarding
