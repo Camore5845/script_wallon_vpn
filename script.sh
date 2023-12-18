@@ -13,6 +13,19 @@ if [ "$(id -u)" != "0" ]; then
    log_message "Ce script doit être exécuté en tant que root"
    exit 1
 fi
+# Fonction pour initialiser les dossiers PKI si nécessaire
+initialiser_dossiers_pki() {
+    local dossier_pki="/opt/easy-rsa/pki"
+    
+    # Créer le dossier principal de la PKI
+    creer_dossier_si_necessaire "$dossier_pki"
+
+    # Créer les sous-dossiers nécessaires pour les certificats et clés
+    creer_dossier_si_necessaire "$dossier_pki/issued"
+    creer_dossier_si_necessaire "$dossier_pki/private"
+
+    log_message "Dossiers PKI initialisés."
+}
 
 #Variables globales pour l'IP et le port du serveur, le nom du serveur et le nom de la CA
 SERVER_IP=""
@@ -20,7 +33,7 @@ SERVER_PORT=""
 CA_NAME=""
 server_name="""
 
-# Demande à l'utilisateur d'entrer l'IP et le port du serveur
+#Demande à l'utilisateur d'entrer l'IP et le port du serveur
 demander_ip_port() {
     read -p "Entrer l'adresse IP du serveur OpenVPN (ex: 172.16.246.10) : " SERVER_IP
     read -p "Entrer le port du serveur OpenVPN (ex: 1194) : " SERVER_PORT
@@ -74,7 +87,8 @@ installer_openvpn() {
 #Fonction pour configurer la PKI et les certificats
 configurer_pki() {
     log_message "Configuration de la PKI et des certificats..."
-
+     # Initialiser les dossiers PKI
+    initialiser_dossiers_pki
     cd /opt/easy-rsa
     ./easyrsa init-pki
 
